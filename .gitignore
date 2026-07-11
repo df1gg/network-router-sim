@@ -38,3 +38,7 @@
 modules.order
 Module.symvers
 
+# Build
+/bin/
+/build/
+/main
