@@ -15,7 +15,10 @@ struct Packet {
 
 struct Port {
   struct Packet rx_buffer;
-  int is_data;
+  int has_rx_data;
+
+  struct Packet tx_buffer;
+  int has_tx_data;
 };
 
 struct Router {
@@ -33,35 +36,37 @@ struct Host {
 
 void host_push_to_wire(struct Router *router, int port_id, struct Packet pkt) {
   router->ports[port_id].rx_buffer = pkt;
-  router->ports[port_id].is_data = 1;
-  printf("[Host]: Send packet on wire %d port\n", port_id);
+  router->ports[port_id].has_rx_data = 1;
+  printf("[Host mac: %d]: Send packet on wire %d port\n", pkt.src_mac, port_id);
 }
 
 void forward_packet(struct Router *router, struct Packet *pkt) {
-  int founded_port = -1;
+  int target_port = -1;
 
   for (int i = 0; i < PORTS_COUNT; i++) {
     if (pkt->dst_mac == router->mac_table[i]) {
-      founded_port = i;
+      target_port = i;
       break;
     }
   }
 
-  if (founded_port != -1) {
-    printf("[Router]: Received packet to MAC: %d, with data: %s\n",
-           pkt->dst_mac, pkt->payload);
+  if (target_port != -1) {
+    router->ports[target_port].tx_buffer = *pkt;
+    router->ports[target_port].has_tx_data = 1;
+    printf("[Router]: Packet forwarded to physical Port %d\n", target_port);
   } else {
-    printf("[Router]: Port not found!\n");
+    printf("[Router]: Flood or drop! MAC not found.\n");
   }
 }
 
 void router_tock(struct Router *router) {
   for (int i = 0; i < PORTS_COUNT; i++) {
-    if (router->ports[i].is_data == 1) {
+    if (router->ports[i].has_rx_data == 1) {
       struct Packet inc_packet = router->ports[i].rx_buffer;
-      router->ports[i].is_data = 0;
+      router->ports[i].has_rx_data = 0;
 
-      printf("[Router]: Detected packet on %d port. Forward to dest IP...\n",
+      printf("[Router]: Detected packet on %d port. Forward to dest physical "
+             "Port...\n",
              i);
 
       forward_packet(router, &inc_packet);
@@ -86,10 +91,9 @@ int main(void) {
   computer_2.subnet_mask = 24;
 
   struct Router my_router;
-  my_router.mac_table[0] = 0;
+  memset(&my_router, 0, sizeof(struct Router));
   my_router.mac_table[1] = computer_1.mac;
   my_router.mac_table[2] = computer_2.mac;
-  my_router.mac_table[3] = 0;
 
   struct Packet packet;
   packet.src_ip = computer_1.ip;
@@ -99,6 +103,14 @@ int main(void) {
   snprintf(packet.payload, PAYLOAD_SIZE, "Hello from %s!", computer_1.name);
   host_push_to_wire(&my_router, 1, packet);
   router_tock(&my_router);
+
+  if (my_router.ports[2].has_tx_data == 1) {
+    printf("[Host mac: %d] New packet from %d MAC with data: %s\n",
+           my_router.ports[2].tx_buffer.dst_mac,
+           my_router.ports[2].tx_buffer.src_mac,
+           my_router.ports[2].tx_buffer.payload);
+    my_router.ports[2].has_tx_data = 0;
+  }
 
   return 0;
 }
