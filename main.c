@@ -59,7 +59,7 @@ int host_get_mac_from_cache(struct Host *host, int target_ip) {
   return -1;
 }
 
-void host_push_to_wire(struct Router *router, struct Host *host, int port_id,
+void host_push_to_wire(struct Router *router, struct Host *host,
                        struct Packet *pkt) {
   if (pkt->type == PACKET_IP) {
     int dst_mac = host_get_mac_from_cache(host, pkt->dst_ip);
@@ -75,10 +75,10 @@ void host_push_to_wire(struct Router *router, struct Host *host, int port_id,
     }
   }
 
-  router->ports[port_id].rx_buffer = *pkt;
-  router->ports[port_id].has_rx_data = 1;
+  router->ports[host->port_id].rx_buffer = *pkt;
+  router->ports[host->port_id].has_rx_data = 1;
   printf("[%d/%d]: Send packet on wire %d port\n", pkt->src_ip, pkt->src_mac,
-         port_id);
+         host->port_id);
 }
 
 void forward_packet(struct Router *router, struct Packet *pkt, int port_id) {
@@ -132,7 +132,7 @@ void host_receive(struct Router *router, struct Host *host,
       response.dst_mac = rx_pkt.src_mac;
       snprintf(response.payload, PAYLOAD_SIZE, "ARP_REPLY");
 
-      host_push_to_wire(router, host, host->port_id, &response);
+      host_push_to_wire(router, host, &response);
     }
   } else if (rx_pkt.type == PACKET_ARP_RESP) {
     if (rx_pkt.dst_mac == host->mac) {
@@ -153,7 +153,7 @@ void host_receive(struct Router *router, struct Host *host,
         host->pending_packet.type = PACKET_IP;
         host->has_pending = 0;
 
-        host_push_to_wire(router, host, host->port_id, &host->pending_packet);
+        host_push_to_wire(router, host, &host->pending_packet);
       }
     }
   }
@@ -231,7 +231,7 @@ int main(void) {
   packet.dst_mac = 0;
   snprintf(packet.payload, PAYLOAD_SIZE, "Hello from %s!", computer_1.name);
 
-  host_push_to_wire(&my_router, &computer_1, computer_1.port_id, &packet);
+  host_push_to_wire(&my_router, &computer_1, &packet);
   router_tock(&my_router);
   host_tock(&my_router, &computer_2);
   router_tock(&my_router);
