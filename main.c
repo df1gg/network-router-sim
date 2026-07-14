@@ -71,12 +71,13 @@ void host_push_to_wire(struct Router *router, struct Host *host, int port_id,
 
       pkt->type = PACKET_ARP_REQ;
       pkt->dst_mac = 255;
+      snprintf(pkt->payload, PAYLOAD_SIZE, "ARP_REQ");
     }
   }
 
   router->ports[port_id].rx_buffer = *pkt;
   router->ports[port_id].has_rx_data = 1;
-  printf("[Host mac: %d]: Send packet on wire %d port\n", pkt->src_mac,
+  printf("[%d/%d]: Send packet on wire %d port\n", pkt->src_ip, pkt->src_mac,
          port_id);
 }
 
@@ -114,13 +115,14 @@ void host_receive(struct Router *router, struct Host *host,
                   struct Packet rx_pkt) {
   if (rx_pkt.type == PACKET_IP) {
     if (rx_pkt.dst_mac == host->mac) {
-      printf("[%s]: Received data packet from IP %d (MAC %d): %s\n", host->name,
-             rx_pkt.src_ip, rx_pkt.src_mac, rx_pkt.payload);
+      printf("[%d/%d]: Received data packet from IP %d (MAC %d): %s\n",
+             host->ip, host->mac, rx_pkt.src_ip, rx_pkt.src_mac,
+             rx_pkt.payload);
     }
   } else if (rx_pkt.type == PACKET_ARP_REQ) {
     if (rx_pkt.dst_ip == host->ip) {
-      printf("[%s]: Got ARP request! Telling my MAC %d to IP %d\n", host->name,
-             host->mac, rx_pkt.src_ip);
+      printf("[%d/%d]: Got ARP request! Telling my MAC %d to IP %d\n", host->ip,
+             host->mac, host->mac, rx_pkt.src_ip);
 
       struct Packet response;
       response.type = PACKET_ARP_RESP;
@@ -134,8 +136,8 @@ void host_receive(struct Router *router, struct Host *host,
     }
   } else if (rx_pkt.type == PACKET_ARP_RESP) {
     if (rx_pkt.dst_mac == host->mac) {
-      printf("[%s]: Got ARP reply! IP %d is at MAC %d. Saving to cache...\n",
-             host->name, rx_pkt.src_ip, rx_pkt.src_mac);
+      printf("[%d/%d]: Got ARP reply! IP %d is at MAC %d. Saving to cache...\n",
+             host->ip, host->mac, rx_pkt.src_ip, rx_pkt.src_mac);
 
       if (host->arp_cache_count < ARP_CACHE_SIZE) {
         host->arp_cache[host->arp_cache_count].ip = rx_pkt.src_ip;
@@ -144,7 +146,8 @@ void host_receive(struct Router *router, struct Host *host,
       }
 
       if (host->has_pending) {
-        printf("[%s]: Found pending packet. Sending it now!\n", host->name);
+        printf("[%d/%d]: Found pending packet. Sending it now!\n", host->ip,
+               host->mac);
 
         host->pending_packet.dst_mac = rx_pkt.src_mac;
         host->pending_packet.type = PACKET_IP;
@@ -176,8 +179,17 @@ void host_tock(struct Router *router, struct Host *host) {
   if (router->ports[host->port_id].has_tx_data == 1) {
     struct Packet rx_pkt = router->ports[host->port_id].tx_buffer;
     router->ports[host->port_id].has_tx_data = 0;
-    printf("[Host mac: %d] New packet from %d MAC with data: %s\n",
-           rx_pkt.dst_mac, rx_pkt.src_mac, rx_pkt.payload);
+    if (rx_pkt.type == PACKET_ARP_REQ)
+      printf("[%d/%d]: New ARP request packet from IP %d (%d MAC)\n",
+             rx_pkt.dst_ip, rx_pkt.dst_mac, rx_pkt.src_ip, rx_pkt.src_mac);
+    else if (rx_pkt.type == PACKET_ARP_RESP)
+      printf("[%d/%d]: New ARP response packet from IP %d (%d MAC)\n",
+             rx_pkt.dst_ip, rx_pkt.dst_mac, rx_pkt.src_ip, rx_pkt.src_mac);
+    else if (rx_pkt.type == PACKET_IP)
+      printf("[%d/%d]: New packet from IP %d (%d MAC) with data: %s\n",
+             rx_pkt.dst_ip, rx_pkt.dst_mac, rx_pkt.src_ip, rx_pkt.src_mac,
+             rx_pkt.payload);
+
     host_receive(router, host, rx_pkt);
   }
 }
