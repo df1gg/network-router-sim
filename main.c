@@ -9,14 +9,14 @@ int main(void) {
   strncpy(computer_1.name, "Arch", HOST_NAME_SIZE);
   computer_1.ip = MAKE_IP(192, 168, 1, 102);
   computer_1.mac = 1111;
-  computer_1.gateway_ip = MAKE_IP(192, 168, 1, 101);
+  computer_1.gateway_ip = MAKE_IP(192, 168, 1, 1);
   computer_1.subnet_mask = 24;
 
   struct Host computer_2;
   strncpy(computer_2.name, "NixOs", HOST_NAME_SIZE);
   computer_2.ip = MAKE_IP(192, 168, 1, 103);
   computer_2.mac = 2222;
-  computer_2.gateway_ip = MAKE_IP(192, 168, 1, 101);
+  computer_2.gateway_ip = MAKE_IP(192, 168, 1, 1);
   computer_2.subnet_mask = 24;
 
   computer_1.arp_cache_count = 0;
