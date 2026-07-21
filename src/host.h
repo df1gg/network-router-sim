@@ -2,17 +2,18 @@
 #define HOST_H
 
 #include "common.h"
+#include <stdint.h>
 
 struct Router;
 
 struct ArpEntry {
-  int ip;
+  uint32_t ip;
   int mac;
 };
 
 struct Host {
   char name[HOST_NAME_SIZE];
-  int ip;
+  uint32_t ip;
   int mac;
   int subnet_mask;
   int gateway_ip;
@@ -25,7 +26,7 @@ struct Host {
   int has_pending;
 };
 
-int host_get_mac_from_cache(struct Host *host, int target_ip);
+int host_get_mac_from_cache(struct Host *host, uint32_t target_ip);
 void host_push_to_wire(struct Router *router, struct Host *host,
                        struct Packet *pkt);
 void host_receive(struct Router *router, struct Host *host,
